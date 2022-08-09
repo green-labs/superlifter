@@ -18,7 +18,7 @@
     @(api/unwrap (fn [result]
                    (resolve/deliver! l-prom result))
                  (fn [error]
-                   (resolve/resolve-as nil {:message (.getMessage error)}))
+                   (resolve/deliver! l-prom nil {:message (.getMessage error)}))
                  sl-result)))
 
 (defmacro with-superlifter [ctx body]
