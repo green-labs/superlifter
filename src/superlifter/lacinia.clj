@@ -15,9 +15,9 @@
 
 (defn ->lacinia-promise [sl-result]
   (let [l-prom (resolve/resolve-promise)]
-    (api/unwrap (fn [result] (resolve/deliver! l-prom result))
-                (fn [error] (resolve/deliver! l-prom nil {:message (.getMessage error)}))
-                sl-result)
+    (resolve/deliver! l-prom sl-result)
+    (resolve/on-deliver! l-prom
+                         (fn [sl-result] @sl-result))
     l-prom))
 
 (defmacro with-superlifter [ctx body]
