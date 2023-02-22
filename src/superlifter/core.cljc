@@ -133,7 +133,9 @@
                                   (recur)))
                    :cljs (js/setInterval #(fetch-all-handling-errors! context bucket-id)
                                          (:interval opts)))]
-    (assoc opts :stop-fn #?(:clj #(future-cancel watcher)
+    (assoc opts :stop-fn #?(:clj #(do 
+                                    (future-cancel watcher)
+                                    (log :info "future-cancelled?: " (future-cancelled? watcher)))
                             :cljs #(js/clearInterval watcher)))))
 
 #?(:cljs
