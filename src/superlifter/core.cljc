@@ -125,15 +125,31 @@
 (defn update-trigger! [context bucket-id trigger-kind opts-fn]
   (update-bucket! context bucket-id (fn [bucket]
                                       (update-in bucket [:triggers trigger-kind] opts-fn))))
+(def futures (atom []))
+
+(comment
+  (def continue? (atom true))
+  (def p1 (prom/create (fn [resolve reject]
+                         (while @continue?
+                           (println "Hello!")
+                           (Thread/sleep 1000))
+                         (resolve :done))
+                       :vthread))
+  (reset! continue? false)
+  @p1)
 
 (defmethod start-trigger! :interval [_ context bucket-id opts]
-  (let [watcher #?(:clj (future (loop []
-                                  (Thread/sleep (:interval opts))
-                                  (fetch-all-handling-errors! context bucket-id)
-                                  (recur)))
+  (let [continue? (atom true)
+        watcher #?(:clj (prom/create (fn [resolve reject]
+                                       (while @continue?
+                                         (Thread/sleep (:interval opts))
+                                         (fetch-all-handling-errors! context bucket-id))
+                                       (resolve true))
+                                     :vthread)
                    :cljs (js/setInterval #(fetch-all-handling-errors! context bucket-id)
                                          (:interval opts)))]
-    (assoc opts :stop-fn #?(:clj #(future-cancel watcher)
+    ;(swap! futures conj watcher)
+    (assoc opts :stop-fn #?(:clj #(reset! continue? false)
                             :cljs #(js/clearInterval watcher)))))
 
 #?(:cljs
@@ -186,15 +202,15 @@
 
 (defn- start-triggers! [context bucket-id {:keys [triggers] :as opts}]
   (update opts :triggers
-          #(do (log :debug "Starting" (count triggers) "triggers for bucket" bucket-id)
+          #(do (log :info "Starting" (count triggers) "triggers for bucket" bucket-id)
                (reduce-kv (fn [ts trigger-kind trigger-opts]
-                            (log :debug "Starting trigger" trigger-kind "for bucket" bucket-id trigger-opts)
+                            (log :info "Starting trigger" trigger-kind "for bucket" bucket-id trigger-opts)
                             (assoc ts trigger-kind (start-trigger! trigger-kind context bucket-id trigger-opts)))
                           {}
                           %))))
 
 (defn- start-bucket! [context bucket-id opts]
-  (log :debug "Starting bucket" bucket-id)
+  (log :info "Starting bucket" bucket-id)
   (start-triggers! context bucket-id (-> (assoc opts :queue {:ready [] :waiting []} :id bucket-id)
                                          (update :urania-opts #(merge (:urania-opts context) %)))))
 
@@ -207,6 +223,7 @@
   context)
 
 (defn- stop-bucket! [context bucket-id]
+  (log :info "Stopping bucket" bucket-id)
   (doseq [{:keys [stop-fn]} (vals (:triggers (get @(:buckets context) bucket-id)))
           :when stop-fn]
     (stop-fn)))
