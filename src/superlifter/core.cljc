@@ -31,14 +31,13 @@
                               (assoc :ready (:waiting queue))))))
 
 (defn- update-bucket! [context bucket-id f]
-  (let [bucket-id (if (contains? @(:buckets context) bucket-id)
+  (let [bucket-id (if (contains? (:buckets context) bucket-id)
                     bucket-id
                     (do (log :warn "Bucket" bucket-id "does not exist, using default bucket")
                         default-bucket-id))
-        new (-> (swap! (:buckets context)
-                       (fn [buckets]
-                         (update buckets bucket-id (comp f clear-ready))))
-                (get bucket-id))]
+        new (-> context
+                (get-in [:buckets bucket-id])
+                (swap! (comp f clear-ready)))]
     (if-let [muses-and-promises (not-empty (get-in new [:queue :ready]))]
       (let [cache (get-in new [:urania-opts :cache])
 
@@ -70,7 +69,7 @@
    (fetch-bucket! context bucket-id)))
 
 (defn fetch-all! [context]
-  (prom/then (prom/all (map (partial fetch! context) (keys @(:buckets context))))
+  (prom/then (prom/all (map (partial fetch! context) (keys (:buckets context))))
              (fn [results]
                (reduce into [] results))))
 
@@ -212,13 +211,13 @@
                         (update :urania-opts #(merge urania-opts %)))]
     (start-triggers! bucket-id bucket-opts)))
 
-(defn- start-buckets! [{:keys [buckets urania-opts] :as context}]
-  (swap! buckets
-         (fn [buckets]
-           (medley/map-kv-vals (fn [bucket-id bucket-opts]
-                                 (start-bucket! bucket-id bucket-opts urania-opts))
-                               buckets)))
-  context)
+(defn- start-buckets! [{:keys [urania-opts] :as context}]
+  (update context
+          :buckets
+          (fn [buckets]
+            (medley/map-kv-vals (fn [bucket-id bucket-opts]
+                                  (atom (start-bucket! bucket-id bucket-opts urania-opts)))
+                                buckets))))
 
 (defn- stop-bucket! [context bucket-id]
   (doseq [stop-fn (vals (get-in context [:stop-fns bucket-id]))]
@@ -241,8 +240,8 @@
   "Calls start-fn for each trigger if exists, traversing all triggers in the buckets atom.
   Returns new context with :stop-fns associated, which is a map storing functions to stop watcher threads of those triggers."
   [context]
-  (let [stop-fns (->> (for [[bucket-id bucket] @(:buckets context)]
-                        [bucket-id (->> (for [[trigger-kind trigger] (:triggers bucket)
+  (let [stop-fns (->> (for [[bucket-id bucket] (:buckets context)]
+                        [bucket-id (->> (for [[trigger-kind trigger] (:triggers @bucket)
                                               :when (#{:interval :debounced} trigger-kind)]
                                           [trigger-kind ((:start-fn trigger) context)])  ;; [trigger-kind -> stop-fn]
                                         (into {}))]) ;; {trigger-kind -> stop-fn}
@@ -293,7 +292,7 @@
   [opts]
   (-> (merge (default-opts) opts)
       (update-in [:buckets default-bucket-id] #(or % {}))
-      (update :buckets atom)
+      ;(update :buckets atom)
       (start-buckets!)
       (start-trigger-watchers!)))
 
