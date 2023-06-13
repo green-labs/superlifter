@@ -1,12 +1,13 @@
 (ns example.server
-  (:require [io.pedestal.http :as server]
-            [com.walmartlabs.lacinia.resolve :as resolve]
+  (:require [clojure.tools.logging :as log]
             [com.walmartlabs.lacinia.pedestal :as lacinia]
+            [com.walmartlabs.lacinia.resolve :as resolve]
             [com.walmartlabs.lacinia.schema :as schema]
-            [superlifter.lacinia :refer [inject-superlifter with-superlifter]]
-            [superlifter.api :as s]
+            [io.pedestal.http :as server]
+            [io.pedestal.interceptor :refer [interceptor]]
             [promesa.core :as prom]
-            [clojure.tools.logging :as log]))
+            [superlifter.api :as s]
+            [superlifter.lacinia :refer [with-superlifter]]))
 
 (def pet-db (atom {"abc-123" {:name "Lyra"
                               :age 11}
@@ -66,6 +67,14 @@
   {:buckets {:default {:triggers {:queue-size {:threshold 1}}}
              :pet-details {:triggers {:elastic {:threshold 0}}}}
    :urania-opts {:env {:db @pet-db}}})
+
+(defn inject-superlifter [superlifter-args]
+  (interceptor
+   {:name ::inject-superlifter
+    :enter (fn [ctx]
+             (assoc-in ctx [:request :superlifter] (s/start! superlifter-args)))
+    :leave (fn [ctx]
+             (update-in ctx [:request :superlifter] s/stop!))}))
 
 (def service
   (lacinia/service-map
