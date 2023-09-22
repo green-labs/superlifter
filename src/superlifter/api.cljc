@@ -8,9 +8,10 @@
   ([f p] (unwrap f identity p))
   ([then-f catch-f p]
    (if (prom/promise? p)
-     (-> p
-         (prom/then then-f)
-         (prom/catch catch-f))
+     (prom/handle p (fn [result error]
+                      (if error
+                        (catch-f error)
+                        (then-f result))))
      (prom/resolved (then-f p)))))
 
 #?(:clj (defmacro def-fetcher [sym bindings do-fetch-fn]
