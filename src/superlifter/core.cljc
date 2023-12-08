@@ -56,7 +56,7 @@
             (prom/catch
              (fn [ex]
                (doall (map prom/reject! promises (repeat ex)))))))
-      (do (log :info "Nothing ready to fetch for" bucket-id)
+      (do (log :debug "Nothing ready to fetch for" bucket-id)
           (prom/resolved nil)))))
 
 (defn- fetch-bucket! [context bucket-id]
