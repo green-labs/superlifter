@@ -56,7 +56,7 @@
             (prom/catch
              (fn [ex]
                (doall (map prom/reject! promises (repeat ex)))))))
-      (do (log :debug "Nothing ready to fetch for" bucket-id)
+      (do (log :info "Nothing ready to fetch for" bucket-id)
           (prom/resolved nil)))))
 
 (defn- fetch-bucket! [context bucket-id]
@@ -79,7 +79,7 @@
   ([context muse] (enqueue! context default-bucket-id muse))
   ([context bucket-id muse]
    (let [promise (prom/deferred)]
-     (log :debug "Enqueuing muse into" bucket-id (:id muse))
+     (log :info "Enqueuing muse into" bucket-id (:id muse))
      (update-bucket! context
                      bucket-id
                      (fn [bucket]
@@ -197,14 +197,14 @@
 (defn- start-triggers! [bucket-id bucket-opts]
   (update bucket-opts :triggers
           (fn [triggers]
-            (log :debug "Starting" (count triggers) "triggers for bucket" bucket-id)
+            (log :info "Starting" (count triggers) "triggers for bucket" bucket-id)
             (->> triggers
                  (medley/map-kv-vals (fn [trigger-kind trigger-opts]
-                                       (log :debug "Starting trigger" trigger-kind "for bucket" bucket-id trigger-opts)
+                                       (log :info "Starting trigger" trigger-kind "for bucket" bucket-id trigger-opts)
                                        (start-trigger! trigger-kind bucket-id trigger-opts)))))))
 
 (defn- start-bucket! [bucket-id bucket-opts urania-opts]
-  (log :debug "Starting bucket" bucket-id)
+  (log :info "Starting bucket" bucket-id)
   (let [bucket-opts (-> bucket-opts
                         (assoc :queue {:ready [] :waiting []}
                                :id bucket-id)
@@ -224,7 +224,7 @@
     (stop-fn)))
 
 (defn add-bucket! [context bucket-id opts]
-  (log :debug "Adding bucket" bucket-id opts)
+  (log :info "Adding bucket" bucket-id opts)
   (swap-vals! (:buckets context)
               (fn [buckets]
                 (if (contains? buckets bucket-id)
