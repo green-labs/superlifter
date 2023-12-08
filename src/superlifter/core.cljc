@@ -79,7 +79,7 @@
   ([context muse] (enqueue! context default-bucket-id muse))
   ([context bucket-id muse]
    (let [promise (prom/deferred)]
-     (log :info "Enqueuing muse into" bucket-id (:id muse))
+     (log :debug "Enqueuing muse into" bucket-id (:id muse))
      (update-bucket! context
                      bucket-id
                      (fn [bucket]
