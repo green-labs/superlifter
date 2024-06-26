@@ -1,11 +1,15 @@
 (ns superlifter.lacinia
   (:require [com.walmartlabs.lacinia.resolve :as resolve]
+            [clojure.tools.logging :as log]
             [superlifter.api :as api]))
 
 (defn ->lacinia-promise [sl-result]
   (let [l-prom (resolve/resolve-promise)]
-    (api/unwrap (fn [result] (resolve/deliver! l-prom result))
-                (fn [error] (resolve/deliver! l-prom nil {:message (.getMessage error)}))
+    (api/unwrap (fn [result]
+                  (resolve/deliver! l-prom result))
+                (fn [error]
+                  (log/error "Error in promise!" error)
+                  (resolve/deliver! l-prom nil {:message (.getMessage error)}))
                 sl-result)
     l-prom))
 
