@@ -200,8 +200,6 @@
      :cljs (satisfies? cljs.core/IEditableCollection coll)))
 
 (defn- reduce-map
-  "Maps a function over the key/value pairs of an associative collection, using
-   the return of the function as the new value."
   [f coll]
   (let [coll' (if (record? coll) (into {} coll) coll)]
     (if (editable? coll')
