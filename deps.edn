@@ -2,7 +2,6 @@
  :deps  {funcool/urania            {:git/url "https://github.com/funcool/urania.git"
                                     :git/sha "4043efef7e7e280a40417f38250168e99a3b5fec"}
          funcool/promesa           {:mvn/version "10.0.594"}
-         dev.weavejester/medley    {:mvn/version "1.8.1"}
          org.clojure/tools.logging {:mvn/version "0.6.0"}}
 
  :mvn/repos
