@@ -199,15 +199,22 @@
   #?(:clj  (instance? clojure.lang.IEditableCollection coll)
      :cljs (satisfies? cljs.core/IEditableCollection coll)))
 
-(defn- map-kv-vals
-  "Copy of medley.core/map-kv-vals,
-   Maps a function over the key/value pairs of an associative collection, using
+(defn- reduce-map
+  "Maps a function over the key/value pairs of an associative collection, using
    the return of the function as the new value."
   [f coll]
   (let [coll' (if (record? coll) (into {} coll) coll)]
     (if (editable? coll')
       (persistent! (reduce-kv (f assoc!) (transient (empty coll')) coll'))
       (reduce-kv (f assoc) (empty coll') coll'))))
+
+(defn map-kv-vals
+  "Copy of medley.core/map-kv-vals,
+   Maps a function over the key/value pairs of an associative collection, using
+  the return of the function as the new value."
+  {:added "1.2.0"}
+  [f coll]
+  (reduce-map (fn [xf] (fn [m k v] (xf m k (f k v)))) coll))
 
 (defn- start-triggers! [bucket-id bucket-opts]
   (update bucket-opts :triggers
