@@ -1,7 +1,6 @@
 (ns superlifter.core
   (:require [urania.core :as u]
             [promesa.core :as prom]
-            [medley.core :as medley]
             #?(:clj [superlifter.logging :refer [log]]
                :cljs [superlifter.logging :refer-macros [log]]))
   (:refer-clojure :exclude [resolve]))
@@ -100,12 +99,12 @@
 (defmulti start-trigger! (fn [kind _bucket-id _opts] kind))
 
 (defmethod start-trigger! :queue-size [_ _bucket-id {:keys [threshold] :as opts}]
-           (assoc opts :enqueue-fn (fn [{:keys [queue] :as bucket}]
-                                     (if (= threshold (count (:waiting queue)))
-                                       (-> bucket
-                                           (assoc-in [:queue :ready] (take threshold (:waiting queue)))
-                                           (update-in [:queue :waiting] #(drop threshold %)))
-                                       bucket))))
+  (assoc opts :enqueue-fn (fn [{:keys [queue] :as bucket}]
+                            (if (= threshold (count (:waiting queue)))
+                              (-> bucket
+                                  (assoc-in [:queue :ready] (take threshold (:waiting queue)))
+                                  (update-in [:queue :waiting] #(drop threshold %)))
+                              bucket))))
 
 (defmethod start-trigger! :elastic [kind _bucket-id opts]
   (assoc opts
@@ -182,8 +181,8 @@
                     :cljs (fn [context]
                             (let [watcher (js/setTimeout check-debounced 0 context bucket-id interval last-updated)]
                               (fn []
-                                  (js/clearInterval watcher)
-                                  (reset! last-updated :exit)))))]
+                                (js/clearInterval watcher)
+                                (reset! last-updated :exit)))))]
     (assoc opts
            :enqueue-fn (fn [bucket]
                          (reset! last-updated #?(:clj (System/currentTimeMillis)
@@ -194,14 +193,30 @@
 (defmethod start-trigger! :default [_trigger-kind _bucket-id opts]
   opts)
 
+(defn- editable?
+  "Copy of medley.core/editable?, returns true if the collection is editable, false otherwise."
+  [coll]
+  #?(:clj  (instance? clojure.lang.IEditableCollection coll)
+     :cljs (satisfies? cljs.core/IEditableCollection coll)))
+
+(defn- map-kv-vals
+  "Copy of medley.core/map-kv-vals,
+   Maps a function over the key/value pairs of an associative collection, using
+   the return of the function as the new value."
+  [f coll]
+  (let [coll' (if (record? coll) (into {} coll) coll)]
+    (if (editable? coll')
+      (persistent! (reduce-kv (f assoc!) (transient (empty coll')) coll'))
+      (reduce-kv (f assoc) (empty coll') coll'))))
+
 (defn- start-triggers! [bucket-id bucket-opts]
   (update bucket-opts :triggers
           (fn [triggers]
             (log :debug "Starting" (count triggers) "triggers for bucket" bucket-id)
             (->> triggers
-                 (medley/map-kv-vals (fn [trigger-kind trigger-opts]
-                                       (log :debug "Starting trigger" trigger-kind "for bucket" bucket-id trigger-opts)
-                                       (start-trigger! trigger-kind bucket-id trigger-opts)))))))
+                 (map-kv-vals (fn [trigger-kind trigger-opts]
+                                (log :debug "Starting trigger" trigger-kind "for bucket" bucket-id trigger-opts)
+                                (start-trigger! trigger-kind bucket-id trigger-opts)))))))
 
 (defn- start-bucket! [bucket-id bucket-opts urania-opts]
   (log :debug "Starting bucket" bucket-id)
@@ -215,9 +230,9 @@
   (update context
           :buckets
           (fn [buckets]
-            (medley/map-kv-vals (fn [bucket-id bucket-opts]
-                                  (atom (start-bucket! bucket-id bucket-opts urania-opts)))
-                                buckets))))
+            (map-kv-vals (fn [bucket-id bucket-opts]
+                           (atom (start-bucket! bucket-id bucket-opts urania-opts)))
+                         buckets))))
 
 (defn- stop-bucket! [context bucket-id]
   (doseq [stop-fn (vals (get-in context [:stop-fns bucket-id]))]
