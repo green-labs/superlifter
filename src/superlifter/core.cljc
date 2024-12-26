@@ -123,12 +123,15 @@
 
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
-                           (let [watcher (future (loop []
-                                                   (Thread/sleep (:interval opts))
-                                                   (fetch-all-handling-errors! context bucket-id)
-                                                   (recur)))]
+                           (let [continue? (atom true)
+                                 _watcher (prom/create (fn [resolve _reject]
+                                                         (while @continue?
+                                                           (Thread/sleep (:inverval opts))
+                                                           (fetch-all-handling-errors! context bucket-id))
+                                                         (resolve true))
+                                                       :vthread)]
                              ;; return a function to stop the watcher
-                             #(future-cancel watcher)))
+                             #(reset! continue? false)))
                     :cljs (fn [context]
                             (let [watcher
                                   (js/setInterval #(fetch-all-handling-errors! context bucket-id)
