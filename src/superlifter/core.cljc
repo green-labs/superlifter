@@ -1,6 +1,7 @@
 (ns superlifter.core
   (:require [urania.core :as u]
             [promesa.core :as prom]
+            [superlifter.future :refer [future-with-pooled-executor]]
             #?(:clj [superlifter.logging :refer [log]]
                :cljs [superlifter.logging :refer-macros [log]]))
   (:refer-clojure :exclude [resolve]))
@@ -123,10 +124,10 @@
 
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
-                           (let [watcher (future (loop []
-                                                   (Thread/sleep (:interval opts))
-                                                   (fetch-all-handling-errors! context bucket-id)
-                                                   (recur)))]
+                           (let [watcher (future-with-pooled-executor (loop []
+                                                                        (Thread/sleep (:interval opts))
+                                                                        (fetch-all-handling-errors! context bucket-id)
+                                                                        (recur)))]
                              ;; return a function to stop the watcher
                              #(future-cancel watcher)))
                     :cljs (fn [context]
@@ -157,22 +158,22 @@
   (let [interval (:interval opts)
         last-updated (atom nil)
         start-fn #?(:clj (fn [context]
-                           (let [watcher (future (loop []
-                                                   (let [lu @last-updated]
-                                                     (cond
-                                                       (nil? lu) (do (Thread/sleep interval)
-                                                                     (recur))
+                           (let [watcher (future-with-pooled-executor (loop []
+                                                                        (let [lu @last-updated]
+                                                                          (cond
+                                                                            (nil? lu) (do (Thread/sleep interval)
+                                                                                          (recur))
 
-                                                       (= :exit lu) nil
+                                                                            (= :exit lu) nil
 
-                                                       (<= interval (- (System/currentTimeMillis) lu))
-                                                       (do (fetch-all-handling-errors! context bucket-id)
-                                                           (compare-and-set! last-updated lu nil)
-                                                           (recur))
+                                                                            (<= interval (- (System/currentTimeMillis) lu))
+                                                                            (do (fetch-all-handling-errors! context bucket-id)
+                                                                                (compare-and-set! last-updated lu nil)
+                                                                                (recur))
 
-                                                       :else
-                                                       (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
-                                                           (recur))))))]
+                                                                            :else
+                                                                            (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
+                                                                                (recur))))))]
 
                              ;; return a function to stop the watcher
                              (fn []
