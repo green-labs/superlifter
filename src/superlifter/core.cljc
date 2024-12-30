@@ -129,6 +129,7 @@
                                                             (Thread/sleep (:interval opts))
                                                             (fetch-all-handling-errors! context bucket-id)
                                                             (recur)))))]
+                             @watcher
                              ;; return a function to stop the watcher
                              #(prom/cancel! @watcher)))
                     :cljs (fn [context]
@@ -177,7 +178,7 @@
                                                                 :else
                                                                 (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
                                                                     (recur))))))))]
-
+                             @watcher
                              ;; return a function to stop the watcher
                              (fn []
                                (prom/cancel! @watcher)
