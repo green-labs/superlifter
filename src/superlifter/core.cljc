@@ -123,12 +123,14 @@
 
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
-                           (let [watcher (future (loop []
-                                                   (Thread/sleep (:interval opts))
-                                                   (fetch-all-handling-errors! context bucket-id)
-                                                   (recur)))]
+                           (let [watcher (delay
+                                           (prom/future (loop []
+                                                          (when-not (prom/cancelled? @watcher)
+                                                            (Thread/sleep (:interval opts))
+                                                            (fetch-all-handling-errors! context bucket-id)
+                                                            (recur)))))]
                              ;; return a function to stop the watcher
-                             #(future-cancel watcher)))
+                             #(prom/cancel! @watcher)))
                     :cljs (fn [context]
                             (let [watcher
                                   (js/setInterval #(fetch-all-handling-errors! context bucket-id)
@@ -157,26 +159,28 @@
   (let [interval (:interval opts)
         last-updated (atom nil)
         start-fn #?(:clj (fn [context]
-                           (let [watcher (future (loop []
-                                                   (let [lu @last-updated]
-                                                     (cond
-                                                       (nil? lu) (do (Thread/sleep interval)
-                                                                     (recur))
+                           (let [watcher (delay
+                                           (prom/future (loop []
+                                                          (when-not (prom/cancelled? @watcher)
+                                                            (let [lu @last-updated]
+                                                              (cond
+                                                                (nil? lu) (do (Thread/sleep interval)
+                                                                              (recur))
 
-                                                       (= :exit lu) nil
+                                                                (= :exit lu) nil
 
-                                                       (<= interval (- (System/currentTimeMillis) lu))
-                                                       (do (fetch-all-handling-errors! context bucket-id)
-                                                           (compare-and-set! last-updated lu nil)
-                                                           (recur))
+                                                                (<= interval (- (System/currentTimeMillis) lu))
+                                                                (do (fetch-all-handling-errors! context bucket-id)
+                                                                    (compare-and-set! last-updated lu nil)
+                                                                    (recur))
 
-                                                       :else
-                                                       (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
-                                                           (recur))))))]
+                                                                :else
+                                                                (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
+                                                                    (recur))))))))]
 
                              ;; return a function to stop the watcher
                              (fn []
-                               (future-cancel watcher)
+                               (prom/cancel! @watcher)
                                (reset! last-updated :exit))))
                     :cljs (fn [context]
                             (let [watcher (js/setTimeout check-debounced 0 context bucket-id interval last-updated)]
