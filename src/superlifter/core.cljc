@@ -124,14 +124,14 @@
 
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
-                           (let [cancelled? (volatile! false)
+                           (let [cancelled? (atom false)
                                  _watcher (prom/thread-call exec/default-executor
                                                             (fn [] (loop []
                                                                      (when-not @cancelled?
                                                                        (Thread/sleep (:interval opts))
                                                                        (fetch-all-handling-errors! context bucket-id)
                                                                        (recur)))))]
-                             #(vreset! cancelled? true)))
+                             #(reset! cancelled? true)))
                     :cljs (fn [context]
                             (let [watcher
                                   (js/setInterval #(fetch-all-handling-errors! context bucket-id)
@@ -160,7 +160,7 @@
   (let [interval (:interval opts)
         last-updated (atom nil)
         start-fn #?(:clj (fn [context]
-                           (let [cancelled? (volatile! false)
+                           (let [cancelled? (atom false)
                                  _watcher (prom/thread-call exec/default-executor
                                                             (fn []
                                                               (loop []
@@ -182,7 +182,7 @@
                                                                           (recur))))))))]
                              ;; return a function to stop the watcher
                              (fn []
-                               (vreset! cancelled? true)
+                               (reset! cancelled? true)
                                (reset! last-updated :exit))))
                     :cljs (fn [context]
                             (let [watcher (js/setTimeout check-debounced 0 context bucket-id interval last-updated)]
