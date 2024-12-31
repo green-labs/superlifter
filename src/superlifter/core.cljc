@@ -20,6 +20,8 @@
   (urania-> [this new-value]
     (reset! this new-value)))
 
+(def default-executor (exec/forkjoin-executor :parallelism 40))
+
 (def default-bucket-id :default)
 
 (defn- clear-ready [bucket]
@@ -125,7 +127,7 @@
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
                            (let [cancelled? (atom false)
-                                 _watcher (prom/thread-call (exec/forkjoin-executor :parallelism 40)
+                                 _watcher (prom/thread-call default-executor
                                                             (fn [] (loop []
                                                                      (when-not @cancelled?
                                                                        (Thread/sleep (:interval opts))
@@ -161,7 +163,7 @@
         last-updated (atom nil)
         start-fn #?(:clj (fn [context]
                            (let [cancelled? (atom false)
-                                 _watcher (prom/thread-call (exec/forkjoin-executor :parallelism 40)
+                                 _watcher (prom/thread-call default-executor
                                                             (fn []
                                                               (loop []
                                                                 (when-not @cancelled?
