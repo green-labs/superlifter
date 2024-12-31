@@ -125,7 +125,7 @@
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
                            (let [cancelled? (volatile! false)
-                                 _watcher (prom/thread-call exec/default-vthread-executor
+                                 _watcher (prom/thread-call exec/default-executor
                                                             (fn [] (loop []
                                                                      (when-not @cancelled?
                                                                        (Thread/sleep (:interval opts))
@@ -161,7 +161,7 @@
         last-updated (atom nil)
         start-fn #?(:clj (fn [context]
                            (let [cancelled? (volatile! false)
-                                 _watcher (prom/thread-call exec/default-vthread-executor
+                                 _watcher (prom/thread-call exec/default-executor
                                                             (fn []
                                                               (loop []
                                                                 (when-not @cancelled?
