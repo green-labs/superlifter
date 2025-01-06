@@ -329,16 +329,3 @@
   [context]
   (run! (partial stop-bucket! context) (-> context :stop-fns keys))
   context)
-
-(comment
-  ;; atom을 이용
-  (require '[promesa.exec :as exec])
-  (volatile! false)
-  (let [cancelled? (volatile! false)
-        watcher (prom/thread-call exec/default-vthread-executor
-                                  (fn []
-                                    (when-not @cancelled?
-                                      (Thread/sleep 1000)
-                                      (println "test"))))]
-    (Thread/sleep 3000)
-    (vreset! cancelled? true)))
