@@ -124,7 +124,7 @@
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
                            (let [watcher (future (loop []
-                                                   (Thread/sleep (:interval opts))
+                                                   (Thread/sleep ^java.lang.Long (:interval opts))
                                                    (fetch-all-handling-errors! context bucket-id)
                                                    (recur)))]
                              ;; return a function to stop the watcher
@@ -160,7 +160,7 @@
                            (let [watcher (future (loop []
                                                    (let [lu @last-updated]
                                                      (cond
-                                                       (nil? lu) (do (Thread/sleep interval)
+                                                       (nil? lu) (do (Thread/sleep ^java.lang.Long interval)
                                                                      (recur))
 
                                                        (= :exit lu) nil
@@ -171,7 +171,7 @@
                                                            (recur))
 
                                                        :else
-                                                       (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
+                                                       (do (Thread/sleep ^java.lang.Long (- interval (- (System/currentTimeMillis) lu)))
                                                            (recur))))))]
 
                              ;; return a function to stop the watcher
