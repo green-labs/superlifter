@@ -7,6 +7,8 @@
 
 #?(:cljs (def Throwable js/Error))
 
+(set! *warn-on-reflection* true)
+
 (defprotocol Cache
   (->urania [this])
   (urania-> [this new-value]))
@@ -124,7 +126,7 @@
 (defmethod start-trigger! :interval [_ bucket-id opts]
   (let [start-fn #?(:clj (fn [context]
                            (let [watcher (future (loop []
-                                                   (Thread/sleep (:interval opts))
+                                                   (Thread/sleep ^long (:interval opts))
                                                    (fetch-all-handling-errors! context bucket-id)
                                                    (recur)))]
                              ;; return a function to stop the watcher
@@ -160,7 +162,7 @@
                            (let [watcher (future (loop []
                                                    (let [lu @last-updated]
                                                      (cond
-                                                       (nil? lu) (do (Thread/sleep interval)
+                                                       (nil? lu) (do (Thread/sleep ^long interval)
                                                                      (recur))
 
                                                        (= :exit lu) nil
@@ -171,7 +173,7 @@
                                                            (recur))
 
                                                        :else
-                                                       (do (Thread/sleep (- interval (- (System/currentTimeMillis) lu)))
+                                                       (do (Thread/sleep ^long (- interval (- (System/currentTimeMillis) lu)))
                                                            (recur))))))]
 
                              ;; return a function to stop the watcher
