@@ -8,6 +8,8 @@
 
 #?(:cljs (def Throwable js/Error))
 
+(set! *warn-on-reflection* true)
+
 (defprotocol Cache
   (->urania [this])
   (urania-> [this new-value]))
