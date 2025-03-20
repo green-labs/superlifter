@@ -9,7 +9,7 @@
                   (resolve/deliver! l-prom result))
                 (fn [error]
                   (log/error "Error in promise!" error)
-                  (resolve/deliver! l-prom nil {:message (.getMessage error)}))
+                  (resolve/deliver! l-prom nil {:message (ex-message error)}))
                 sl-result)
     l-prom))
 
